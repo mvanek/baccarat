@@ -1,5 +1,5 @@
 /*
- * Page:
+ * Page: all
  *
  * These are routines that will be called by client
  * code placed at the end of each page
@@ -7,6 +7,7 @@
 
 
 function build_gamelist( gamelist ) {
+
     var i,          /* Counter for loops */
         list,       /* Array of game objects */
         parent_jq,  /* JQ obj where we post games */
@@ -66,4 +67,21 @@ function newgame_button_handler() {
 
     });
 
+}
+
+
+function newplayer_button_handler() {
+
+    var pid;
+
+    pid = $("#newplayer input[name=new_pid]").val();
+
+    $.ajax({
+        url: "playerConnect",
+        type: "GET",
+
+        data: {
+            player_id: pid
+        }
+    });
 }

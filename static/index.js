@@ -8,9 +8,6 @@
 
 ( function() {
 
-    var new_game_button;        /* Submit button */
-    
-
     /* Fetch remaining info */
     $.ajax({
         url: "/games",

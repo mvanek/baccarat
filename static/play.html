@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+
+
+<html>
+    <head>
+        <title>Play the game</title>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script src="/static/scr.js"></script>
+        <link rel="stylesheet" type="text/css" href="/static/base.css">
+    </head>
+    <body>
+        <div id="board"></div>
+        <div id="hud"></div>
+
+        <form id="newplayer" action="javascript:newplayer_button_handler();" method="post">
+            <fieldset>
+
+                <legend>Add a player</legend>
+
+                <label for="new_pid" size="3">Player ID:</label>
+                <input type="text" name="new_pid">
+
+                <input type="submit" value="Create">
+
+            </fieldset>
+        </form>
+
+
+        <script src="/static/play.js"></script>
+    </body>
+</html>
