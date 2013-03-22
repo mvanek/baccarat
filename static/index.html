@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+
+
+<html>
+    <head>
+        <title>All Games</title>
+        <script
+            src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script src="/static/scr.js"></script>
+        <link rel="stylesheet" type="text/css" href="/static/base.css">
+    </head>
+    <body>
+        <div id="running_games"></div>
+
+
+        <form id="newgame" action="javascript:newgame_button_handler();" method="post">
+            <fieldset>
+
+                <legend>New game</legend>
+
+                <label for="new_name" size="5">Name:</label>
+                <input type="text" name="new_name">
+                <br>
+
+                <label for="new_id" size="3">Game ID:</label>
+                <input type="text" name="new_id">
+                <br>
+
+                <label for="new_max" size="3">Max Players:</label>
+                <input type="text" name="new_max">
+                <br>
+
+                <input type="submit" value="Create">
+
+            </fieldset>
+        </form>
+
+
+        <script src="/static/index.js"></script>
+    </body>
+</html>
