@@ -10,15 +10,55 @@
     </head>
     <body>
         <div id="board"></div>
-        <div id="hud"></div>
+        <div id="hud">
+
+            <form id="status" action="javascript:status_button_handler();" method="post">
+                <fieldset>
+
+                    <legend>Get status for ID</legend>
+                    <label for="pid">ID:</label>
+                    <input type="text" name="pid" size="1">
+                    <input type="submit" value="Refresh">
+
+                </fieldset>
+            </form>
+
+            <span class="label">My cards:</span>
+            <span id="mycards"></span>
+
+            <form id="act" action="javascript:act_button_handler();" method="post">
+                <label for="pid">ID:</label>
+                <input type="text" name="pid" size="1" disabled="disabled">
+                <label for="actions">Actions:</label>
+                <select name="actions"></select>
+                <input type="submit" value="Do it">
+            </form>
+
+            <div class="label">Player info:</div>
+            <div id="players"></div>
+
+        </div>
 
         <form id="newplayer" action="javascript:newplayer_button_handler();" method="post">
             <fieldset>
 
                 <legend>Add a player</legend>
 
-                <label for="new_pid" size="3">Player ID:</label>
-                <input type="text" name="new_pid">
+                <label for="new_pid">ID:</label>
+                <input type="text" name="new_pid" size="1">
+                <br>
+
+                <label for="new_name">Name:</label>
+                <input type="text" name="new_name" size="3">
+                <br>
+
+                <label for="new_cash">Tokens:</label>
+                <input type="text" name="new_cash" size="3">
+                <br>
+
+                <label for="new_av">Avatar URL:</label>
+                <input type="text" name="new_av" size="15">
+                <br>
 
                 <input type="submit" value="Create">
 

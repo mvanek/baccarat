@@ -6,14 +6,23 @@
  */
 
 
-( function() {
+(function() {
+
+    /* Debugging */
+
+    /* Set default input values */
+    game_name = $("#newgame input[name=new_name]").val(
+        'baccarat');
+    game_id = $("#newgame input[name=new_id]").val(
+        '1');
+    game_max = $("#newgame input[name=new_max]").val(
+        '5');
+
 
     /* Fetch remaining info */
     $.ajax({
         url: "/games",
         type: "GET"
-    }).done( function( data ) {
-        build_gamelist( data );
-    });
+    }).done( update_gamelist );
 
 })();

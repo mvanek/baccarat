@@ -14,6 +14,10 @@ handlers:
   static_files: static/index.html
   upload: static/index\.html
 
+- url: /games/[0-9]+/
+  static_files: static/play.html
+  upload: static/play\.html
+
 - url: /static
   static_dir: static
 
