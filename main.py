@@ -1,3 +1,4 @@
+import logging
 import random
 import os
 import webapp2
@@ -32,27 +33,26 @@ class Card(ndb.Model):
 
     def as_cardstr(self):
         
-        myid = self.key.id() - self.deck().start_card
+        myid = int(self.key.id() - self.deck().start_card)
         
         # First get suit
         if myid < 13:
             suit = 'h'
-            myid = 13 - myid
         elif myid < 26:
             suit = 'd'
-            myid = 26 - myid
+            myid = myid - 13
         elif myid < 39:
             suit = 's'
-            myid = 39 - myid
+            myid = myid - 26
         else:
             suit = 'c'
-            myid = 52 - myid
+            myid = myid - 39
 
         # Then get number
         if myid is 0:
             val = 'A'
         elif myid < 10:
-            val = str(val-1)
+            val = str(myid-1)
         elif myid is 10:
             val = 'J'
         elif myid is 11:
@@ -100,7 +100,7 @@ class Player(ndb.Model):
     name = ndb.StringProperty()
     a_url = ndb.StringProperty()
     tokens = ndb.IntegerProperty()
-    bet = ndb.IntegerProperty()
+    wager = ndb.IntegerProperty()
     cards_vis = ndb.KeyProperty(repeated=True)
     cards_inv = ndb.KeyProperty(repeated=True)
     cards_spl = ndb.KeyProperty(repeated=True)
@@ -111,7 +111,7 @@ class Player(ndb.Model):
     #   2 => Player is standing
     #   3 => Player has surrendered
     #   4 => Player has joined game but is not playing
-    sync = ndb.IntegerProperty()
+    sync = ndb.IntegerProperty(default=4)
 
 
     def game(self):
@@ -121,8 +121,8 @@ class Player(ndb.Model):
 
     def gamestatus_as_dict(self):
 
-        cvis = [card.get().as_cardstring() for card in self.cards_vis]
-        cinv = [card.get().as_cardstring() for card in self.cards_inv]
+        cvis = [card.get().as_cardstr() for card in self.cards_vis]
+        cinv = [card.get().as_cardstr() for card in self.cards_inv]
 
         return {'actions': self.actions(),
                 'your_cards_visible': cvis,
@@ -132,8 +132,8 @@ class Player(ndb.Model):
 
     def info_as_dict(self):
 
-        cvis = [card.get().as_cardstring() for card in self.cards_vis]
-        cinv = [card.get().as_cardstring() for card in self.cards_inv]
+        cvis = [card.get().as_cardstr() for card in self.cards_vis]
+        cinv = [card.get().as_cardstr() for card in self.cards_inv]
 
         return {'name': self.name,
                 'id': self.key.id(),
@@ -145,10 +145,10 @@ class Player(ndb.Model):
 
     def hand_values(self):
 
-        values = set()
+        values = {0}
 
         for card in self.cards_vis:
-            values = {a+b for a in card.map_value() for b in values}
+            values = {a+b for a in card.get().map_value() for b in values}
 
         return values
 
@@ -163,7 +163,7 @@ class Player(ndb.Model):
             if self.sync is 0:
                 ret.append('surrender')
 
-                if cards_vis[0] is cards_vis[1]:
+                if self.cards_vis[0] is self.cards_vis[1]:
                     ret.append('split')
 
             return ret
@@ -179,73 +179,75 @@ class Player(ndb.Model):
         if act not in self.actions():
             return
 
-        dispatch = self.getattr('__{}'.format(act))
-        dispatch()
-        if self.sync is 0:
+        dispatch = getattr(self, '_{}'.format(act))
+        dispatch(val)
+        if self.sync is 0 and self.game().playing:
             self.sync = 1
         self.put()
 
         self.game().selfupdate()
 
 
-    def __hit(self, val):
+    def _hit(self, val):
         gkey = self.key.parent()
-        deck = Deck.query(parent=gkey).get()
+        deck = Deck.query(ancestor=gkey).get()
         card = deck.draw()
 
         # Add card to hand
         self.cards_vis.append(card.key)
 
 
-    def __stand(self, val):
+    def _stand(self, val):
         self.sync = 2
 
 
-    def __doubledown(self, val):
+    def _doubledown(self, val):
 
         # Double your wager
-        self.wager += wager
+        self.wager += self.wager
 
         # Take a single card
-        self.__hit(val)
+        self._hit(val)
 
         # And stand
-        self.__stand(val)
+        self._stand(val)
 
 
-    def __split(self, val):
+    def _split(self, val):
 
         # Set up the two different decks
         self.cards_spl.append(self.cards_vis.pop())
 
 
-    def __surrender(self, val):
+    def _surrender(self, val):
 
         # Mark self as surrendered
         self.sync = 3
 
 
-    def __join(self, val):
+    def _join(self, val):
+
+        wager = int(val)
+
+        # Submit bet
+        self.wager = wager
+        self.tokens -= wager
+
+        # Get two cards
+        self._hit(val)
+        self._hit(val)
 
         # Set proper sync value
         self.sync = 0
-
-        # Submit bet
-        self.bet = val
-        self.tokens -= val
-
-        # Get two cards
-        self.__hit(val)
-        self.__hit(val)
 
 
 
 class Game(ndb.Model):
 
-    name = ndb.StringProperty()
-    p_max = ndb.IntegerProperty()
-    p_cur = ndb.IntegerProperty()
-    playing = ndb.BooleanProperty()
+    name = ndb.StringProperty(required=True)
+    p_max = ndb.IntegerProperty(default=5)
+    p_cur = ndb.IntegerProperty(default=0)
+    playing = ndb.BooleanProperty(default=False)
 
 
     @classmethod
@@ -257,7 +259,8 @@ class Game(ndb.Model):
         new_game = Game(id=gid,
                         name = name,
                         p_max = p_max,
-                        p_cur = 0)
+                        p_cur = 0,
+                        playing = False)
         new_game.put()
 
         Deck.new(1, new_game.key)
@@ -283,10 +286,17 @@ class Game(ndb.Model):
 
     def selfupdate(self):
 
+        # Check if the round should start
+        if self.playing:
+            players = Player.query(Player.sync > 1, ancestor=self.key)
+            if players.count(self.p_cur) is self.p_cur:
+                self.finish_round()
+
         # Check if the round is done
-        players = Player.query(Player.sync > 1, ancestor=self.key)
-        if players.count(self.p_cur) is self.p_cur:
-            self.finish_round()
+        else:
+            players = Player.query(Player.sync == 0, ancestor=self.key)
+            if players.count(self.p_cur) is self.p_cur is not 0:
+                self.start_round()
 
         # Send notification messages to connected clients
         self.notify_players()
@@ -296,8 +306,6 @@ class Game(ndb.Model):
 
         self.playing = True
         self.put()
-
-        self.selfupdate()
 
 
     def finish_round(self):
@@ -312,23 +320,24 @@ class Game(ndb.Model):
             Player.sync == 2,
             ancestor=self.key).fetch(self.p_cur)
 
-        winners = set()
-        losers = set()
+        winners = []
+        losers = []
 
         maxhand = 0
         for player in others:
-            hand_val = player.hand_val()
+            hand_val = player.hand_values()
+            logging.info('{}\'s hand value: {}'.format(player.name, str(hand_val)))
 
-            if hand_val > 21 or hand_val < maxhand:
-                losers.add(player)
+            if all(v > 21 or v < maxhand for v in hand_val):
+                losers.append(player)
 
-            elif hand_val > maxhand:
-                losers.update(winners)
-                winners = {player}
+            elif all(v > maxhand for v in hand_val):
+                losers += winners
+                winners = [player]
                 maxhand += 1
 
             else:
-                winners.add(player)
+                winners.append(player)
 
         # Mark the game as finished
         self.playing = False
@@ -339,15 +348,24 @@ class Game(ndb.Model):
         players = cowards + others
         for p in players:
 
+            # Rewards
             if p in cowards:
-                p.tokens = int(p.wager/2)
-
+                p.tokens += int(p.wager/2)
             if p in winners:
-                p.tokens = self.winnings()
+                p.tokens += self.winnings(p)
 
+            # Reset sync, cards, and bets
             p.sync = 4
+            p.wager = 0
+            p.cards_vis = []
+            p.cards_inv = []
+            p.cards_spl = []
 
         ndb.put_multi(players)
+
+
+    def winnings(self, player):
+        return int(player.wager*1.5)
 
 
     def notify_players(self):
@@ -444,6 +462,8 @@ class StatusPage(webapp2.RequestHandler):
     
     def get(self, gid):
 
+        Game.get_by_id(gid).selfupdate()
+
         pid = self.request.get('player_id')
         if not pid: 
             return
@@ -467,7 +487,7 @@ class ActionPage(webapp2.RequestHandler):
         val = self.request.get('value')
 
         if pid:
-            player = Player.get_by_id(pid)
+            player = ndb.Key('Game', gid, 'Player', pid).get()
 
         if player:
             player.do_action(act, val)

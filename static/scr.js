@@ -20,10 +20,10 @@ function update_gamelist( gamelist ) {
     for( i = 0; i < list.length; i++ ) {
 
         node_jq = $( document.createElement("div") );
-        node_jq.attr( "id", list[i].id );
+        node_jq.prop( "id", list[i].id );
 
         link_jq = $( document.createElement("a") );
-        link_jq.attr(
+        link_jq.prop(
             "href",
             "/games/" + list[i].id + "/"
         );
@@ -45,7 +45,8 @@ function update_gamestatus( gstatus ) {
         
         mycards_jq,
         actions_jq,
-        players_jq;
+        players_jq,
+        wager_jq;
 
     /* Verify input */
     if(!gstatus) {
@@ -57,6 +58,7 @@ function update_gamestatus( gstatus ) {
     mycards_jq = $("#mycards");
     actions_jq = $("#act select[name=actions]");
     players_jq = $("#players");
+    wager_jq = $("#act input[name=wager]");
 
     gstatus = JSON.parse( gstatus );
 
@@ -64,6 +66,13 @@ function update_gamestatus( gstatus ) {
     mycards_jq.children().detach();
     actions_jq.children().detach();
     players_jq.children().detach();
+
+    /* Dim/un-dim the wager box */
+    if( gstatus["actions"][0] === "join" ) {
+        wager_jq.prop("disabled", false);
+    } else {
+        wager_jq.prop("disabled", true);
+    }
 
     /* Enumerate actions */
     for( i = 0; i < gstatus["actions"].length; i++ ) {
@@ -184,4 +193,35 @@ function newplayer_button_handler() {
         }
 
     });
+}
+
+
+function act_button_handler() {
+
+    var pid,
+        val,
+        action;
+
+    action = $("#act select[name=actions]").val();
+    pid = $("#act input[name=pid]").val();
+
+    if( action === "join" ) {
+        val = $("#act input[name=wager]").val();
+    } else {
+        val = null;
+    }
+
+    $.ajax({
+
+        url: "./action",
+        type: "POST",
+
+        data: {
+            player_id: pid,
+            action: action,
+            value: val
+        }
+
+    }).done(status_button_handler);
+
 }

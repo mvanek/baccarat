@@ -16,23 +16,35 @@
                 <fieldset>
 
                     <legend>Get status for ID</legend>
+
                     <label for="pid">ID:</label>
                     <input type="text" name="pid" size="1">
+
                     <input type="submit" value="Refresh">
 
                 </fieldset>
             </form>
 
+
             <span class="label">My cards:</span>
             <span id="mycards"></span>
 
+
             <form id="act" action="javascript:act_button_handler();" method="post">
+
                 <label for="pid">ID:</label>
                 <input type="text" name="pid" size="1" disabled="disabled">
+
+                <label for="wager">Wager:</label>
+                <input type="text" name="wager" size="1">
+
                 <label for="actions">Actions:</label>
                 <select name="actions"></select>
+
                 <input type="submit" value="Do it">
+
             </form>
+
 
             <div class="label">Player info:</div>
             <div id="players"></div>
