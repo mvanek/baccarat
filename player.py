@@ -1,10 +1,12 @@
+import logging
 from google.appengine.ext import ndb
 from deck import Deck
 
 class Player(ndb.Model):
 
     name = ndb.StringProperty()
-    a_url = ndb.StringProperty()
+    a_url = ndb.StringProperty(
+            default='/static/img/kid.png')
     tokens = ndb.IntegerProperty()
     wager = ndb.IntegerProperty()
     cards_vis = ndb.KeyProperty(repeated=True)
@@ -40,41 +42,64 @@ class Player(ndb.Model):
 
         cvis = [card.get().as_cardstr() for card in self.cards_vis]
         cinv = [card.get().as_cardstr() for card in self.cards_inv]
+        cspl = [card.get().as_cardstr() for card in self.cards_spl]
 
         return {'name': self.name,
                 'id': self.key.id(),
                 'tokens': self.tokens,
                 'avatar_url': self.a_url,
                 'cards_visible': cvis,
-                'cards_not_visible': cinv}
+                'cards_split': cspl,
+                'cards_not_visible': cinv,
+                'wager': self.wager,
+                'status': self.sync}
 
 
-    def hand_values(self):
+    def hand_values(self, hand=None):
 
-        values = {0}
+        result = {0}
+        if not hand:
+            hand = self.cards_vis
+        cards = map(lambda card: card.get().map_value(),
+                    self.cards_vis)
 
-        for card in self.cards_vis:
-            values = {a+b for a in card.get().map_value() for b in values}
+        logging.info('Calculating hand value for {}'\
+                .format(self.name))
 
-        return values
+        for card_vals in cards:
+            result = {int(a)+int(b)\
+                    for a in card_vals\
+                    for b in result}
+            logging.info('--> vals {} ==> {}'.format(
+                card_vals,
+                result))
+
+        return result
 
 
     def actions(self):
 
-        if self.sync < 2 and self.game().playing:
+        logging.info('*** player => {}'.format(self.key.id()))
+        if self.key.id() == 'dealer':
+            return []
+
+        game = self.game()
+
+        if self.sync < 2 and game.playing:
             ret = ['hit',
                    'stand',
                    'doubledown']
 
-            if self.sync is 0:
+            if self.sync == 0:
                 ret.append('surrender')
 
-                if self.cards_vis[0] is self.cards_vis[1]:
+                if self.cards_vis[0].get().map_value() ==\
+                        self.cards_vis[1].get().map_value():
                     ret.append('split')
 
             return ret
 
-        elif self.sync is 4:
+        elif self.sync == 4:
             return ['join']
         else:
             return []
@@ -87,27 +112,28 @@ class Player(ndb.Model):
 
         dispatch = getattr(self, '_{}'.format(act))
         dispatch(val)
-        if self.sync is 0 and self.game().playing:
+        if self.sync == 0 and self.game().playing:
             self.sync = 1
         self.put()
 
         self.game().selfupdate()
 
 
-    def _hit(self, val):
+    def _hit(self, val=None):
         gkey = self.key.parent()
         deck = Deck.query(ancestor=gkey).get()
         card = deck.draw()
 
         # Add card to hand
         self.cards_vis.append(card.key)
+        return card
 
 
-    def _stand(self, val):
+    def _stand(self, val=None):
         self.sync = 2
 
 
-    def _doubledown(self, val):
+    def _doubledown(self, val=None):
 
         # Double your wager
         self.wager += self.wager
@@ -119,13 +145,13 @@ class Player(ndb.Model):
         self._stand(val)
 
 
-    def _split(self, val):
+    def _split(self, val=None):
 
         # Set up the two different decks
         self.cards_spl.append(self.cards_vis.pop())
 
 
-    def _surrender(self, val):
+    def _surrender(self, val=None):
 
         # Mark self as surrendered
         self.sync = 3
@@ -133,6 +159,8 @@ class Player(ndb.Model):
 
     def _join(self, val):
 
+        if not val:
+            return
         wager = int(val)
 
         # Submit bet

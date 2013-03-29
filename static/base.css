@@ -1,0 +1,48 @@
+body {
+    font-family:helvetica,sans-serif;
+}
+
+.player_0,.player_1,.player_2,.player_3,.player_4 {
+}
+
+
+.left {
+    display:inline-block;
+    width:150px;
+    height:100%;
+    border:0px;
+    border-style:solid;
+}
+
+.right{
+    height:100%;
+    display:inline-block;
+}
+
+.wager{
+    color:red;
+}
+
+.tokens{
+    color:green;
+}
+
+.name{
+    font-size:1.3em;
+}
+
+.cards{
+    height=100%
+}
+.cards_vis,.cards_inv {
+    display:inline-block;
+    margin:0px;
+    padding:0px;
+    border:0px;
+}
+
+img{
+    margin:0px;
+    padding:0px;
+    border:0px;
+}

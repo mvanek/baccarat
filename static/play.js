@@ -16,10 +16,10 @@
     $("#newplayer input[name=new_name]").val("matt");
     $("#newplayer input[name=new_pid]").val("1");
     $("#newplayer input[name=new_cash]").val("5000");
-    $("#newplayer input[name=new_av]").val("/static/a.png");
+    $("#newplayer input[name=new_av]").val("/static/img/kanye.png");
 
 
-    /* Initialize HUD */
-    status_button_handler();
+    /* Initialize */
+    full_game_update();
 
 })();

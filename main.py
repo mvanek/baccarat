@@ -1,15 +1,19 @@
 import logging
-import random
+import jinja2
 import os
+import random
 import webapp2
 import json
 from google.appengine.ext import ndb
 
 ## Data Models
-from card import Card
-from deck import Deck
 from player import Player
 from game import Game
+
+
+jinja_environment = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
+
 
 
 ## Request Handlers
@@ -63,8 +67,8 @@ class PlayerConnectPage(webapp2.RequestHandler):
         # Make sure input is valid
         keys = ('name',
                 'id',
-                'tokens',
-                'avatar_url')
+                'tokens')
+
         if not all(key in sub_player for key in keys):
             self.response.headers['Content/Type'] = 'text/plain'
             self.response.out.write('error')
@@ -101,7 +105,12 @@ class StatusPage(webapp2.RequestHandler):
     
     def get(self, gid):
 
-        Game.get_by_id(gid).selfupdate()
+        game = Game.get_by_id(gid)
+        game.selfupdate()
+
+        ## test the hand values ##
+        S = Player.query(ancestor=ndb.Key('Game', gid)).map(
+            lambda player: player.hand_values())
 
         pid = self.request.get('player_id')
         if not pid: 
@@ -125,6 +134,7 @@ class ActionPage(webapp2.RequestHandler):
         act = self.request.get('action')
         val = self.request.get('value')
 
+
         if pid:
             player = ndb.Key('Game', gid, 'Player', pid).get()
 
@@ -138,7 +148,14 @@ class TablePage(webapp2.RequestHandler):
     def get(self, gid):
 
         self.response.headers['Content/Type'] = 'text/html'
-        self.response.out.write('this is a beautiful mahogany table.')
+
+        game = Game.get_by_id(gid)
+        players = Player.query(ancestor=game.key)\
+                .map(lambda p: p.info_as_dict())
+        tvars = {'players': players}
+
+        template = jinja_environment.get_template('/templates/table.html')
+        self.response.out.write(template.render(tvars))
 
 
 

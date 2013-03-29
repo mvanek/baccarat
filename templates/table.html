@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+
+{% for player in players %}
+<table><tr class="player_{{ player.status }}" id="{{ player.id }}">
+    <td class="left">
+        <div class="avatar"><img src="{{ player.avatar_url }}"></div>
+    </td>
+    <td>
+        <div class="name">{{ player.name }}</div>
+        {% if player.id != 'dealer' %}
+        <span class="tokens">{{ player.tokens }}</span>
+        /
+        <span class="wager">{{ player.wager }}</span>
+        {% endif %}
+        <div class="cards">
+            <div class="cards_inv">
+                {% for card in player.cards_not_visible %}
+                <img src="/static/cards/inv.png">
+                {% endfor %}
+            </div>
+            <div class="cards_vis">
+                {% for card in player.cards_visible %}
+                <img src="/static/cards/{{ card }}.png">
+                {% endfor %}
+            </div>
+            <div class="cards_spl">
+                {% for card in player.cards_split %}
+                <img src="/static/cards/{{ card }}.png">
+                {% endfor %}
+            </div>
+        </div>
+    </td>
+</tr></table>
+{% endfor %}

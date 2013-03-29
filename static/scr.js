@@ -84,11 +84,14 @@ function update_gamestatus( gstatus ) {
     }
 
     /* Display held cards */
+    /*
     mycards_jq.html( JSON.stringify(
         gstatus["your_cards_visible"] 
     ) );
+    */
 
     /* Display each player's status */
+    /*
     for( i = 0; i < gstatus["players"].length; i++ ) {
         new_player_jq =
             $( document.createElement("div") );
@@ -97,11 +100,24 @@ function update_gamestatus( gstatus ) {
         ) );
         players_jq.append( new_player_jq );
     }
+    */
+
+}
+
+
+function update_table( data ) {
+
+    $("#table").html( data );
 
 }
 
 
 function status_button_handler() {
+    full_game_update()
+}
+
+
+function full_game_update() {
 
     var pid,
         pid_act_jq;
@@ -121,6 +137,16 @@ function status_button_handler() {
             player_id: pid
         }
     }).done( update_gamestatus );
+
+    /* Request table */
+    $.ajax({
+        url: "./visible_table",
+        type: "GET",
+
+        data: {
+            player_id: pid
+        }
+    }).done( update_table );
 }
 
 
@@ -192,7 +218,7 @@ function newplayer_button_handler() {
             player: JSON.stringify( newplayer )
         }
 
-    });
+    }).done( status_button_handler );
 }
 
 

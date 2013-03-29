@@ -1,1 +1,3 @@
-web app implementation of poker
+Poker.
+
+Icons from http://www.jfitz.com/cards/
