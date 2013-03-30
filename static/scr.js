@@ -68,18 +68,18 @@ function update_gamestatus( gstatus ) {
     players_jq.children().detach();
 
     /* Dim/un-dim the wager box */
-    if( gstatus["actions"][0] === "join" ) {
+    if( gstatus["your_actions"][0] === "join" ) {
         wager_jq.prop("disabled", false);
     } else {
         wager_jq.prop("disabled", true);
     }
 
     /* Enumerate actions */
-    for( i = 0; i < gstatus["actions"].length; i++ ) {
+    for( i = 0; i < gstatus["your_actions"].length; i++ ) {
         new_opt_jq =
             $( document.createElement("option") );
-        new_opt_jq.val( gstatus["actions"][i] );
-        new_opt_jq.html( gstatus["actions"][i] );
+        new_opt_jq.val( gstatus["your_actions"][i] );
+        new_opt_jq.html( gstatus["your_actions"][i] );
         actions_jq.append( new_opt_jq );
     }
 

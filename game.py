@@ -6,11 +6,13 @@ from deck import Deck
 class Game(ndb.Model):
 
     name = ndb.StringProperty(required=True)
+    deck = ndb.KeyProperty()
+    playing = ndb.BooleanProperty(default=False)
+
     p_max = ndb.IntegerProperty(default=5)
     p_cur = ndb.IntegerProperty(default=0)
     dealer = ndb.KeyProperty()
-    deck = ndb.KeyProperty()
-    playing = ndb.BooleanProperty(default=False)
+    players = ndb.KeyProperty(repeated=True)
 
 
     @classmethod
@@ -29,7 +31,6 @@ class Game(ndb.Model):
                         playing = False)
 
         new_dealer = Player(id          = 'dealer',
-                            parent      = new_game.key,
                             name        = 'John Goodman, the Dealer',
                             tokens      = 0,
                             a_url       = '/static/img/dealer.png',
@@ -37,6 +38,7 @@ class Game(ndb.Model):
                             cards_inv   = [],
                             sync        = 0)
 
+        new_game.players.append(new_dealer.key)
         new_game.dealer = new_dealer.key
         new_game.deck = Deck.new(1, new_game.key)
 
@@ -54,32 +56,60 @@ class Game(ndb.Model):
                 'players_current': self.p_cur-1}
 
 
+    def gamestatus_as_dict(self, player):
+
+        return {
+            'your_actions': player.actions(self),
+            'your_cards_visible': [c.as_cardstr() for c in\
+                    ndb.get_multi(player.cards_vis + player.cards_inv)],
+            'common_cards_visible': [],
+            'players': self.players_as_dict()
+        }
+
+
     def players_as_dict(self):
 
-        return Player.query(ancestor=self.key).map(
-            lambda player: player.info_as_dict())
+        return [p.info_as_dict() for p in\
+                   ndb.get_multi(self.players)]
+
+
+    def players_sorted_by_sync(self):
+
+        ret = (list(), list(), list(), list(), list())
+
+        all_players = ndb.get_multi(self.players)
+
+        for p in all_players:
+            ret[p.sync].append(p)
+
+        return ret
 
 
     def selfupdate(self):
 
+        players_sorted = self.players_sorted_by_sync()
+
         # Check if the round is done
         if self.playing:
-            players = Player.query(Player.sync > 1, ancestor=self.key)
-            if players.count(self.p_cur) == self.p_cur:
+            players_ready = 0
+            for i in range(2, 5):
+                players_ready += len(players_sorted[i])
+            if players_ready == self.p_cur:
                 self.finish_round()
 
         # Check if the round should start
         else:
-            players = Player.query(Player.sync == 0, ancestor=self.key)
-            if players.count(self.p_cur) == self.p_cur and self.p_cur > 1:
+            players_ready = len(players_sorted[0])
+            if players_ready == self.p_cur and self.p_cur > 1:
                 self.start_round()
 
         # Send info to log
-        logging.info('\n{}\n{}\n{}\n{}'.format(
+        logging.info('\n{}\n{}\n{}\n{}\n{}'.format(
             '*** Updating game status ***',
             '-->   Game running?: {}'.format(self.playing),
             '-->   Total Players: {}'.format(self.p_cur),
-            '--> Players Waiting: {}'.format(players.count(self.p_cur))))
+            '--> Players Waiting: {}'.format(players_ready),
+            '-->  Sorted Players: {}'.format(players_sorted)))
 
         # Send notification messages to connected clients
         self.notify_players()
@@ -91,11 +121,11 @@ class Game(ndb.Model):
 
         dealer = self.dealer.get()
         deck = self.deck.get()
+        players = ndb.get_multi(self.players)
 
         # Remove old cards from player hands, and if they're playing,
         # give them new ones
         anybody_playing = False
-        players = [p for p in Player.query(ancestor=self.key).fetch(self.p_max)]
         for p in players:
 
             # Skip the dealer
@@ -116,8 +146,8 @@ class Game(ndb.Model):
             if p.sync == 0:
                 logging.info('>>> Player: {}'.format(p.name))
                 anybody_playing = True
-                p._hit()
-                p._hit()
+                p._hit(self)
+                p._hit(self)
 
         # If nobody is actually playing, abort without changing the datastore
         if not anybody_playing:
@@ -137,24 +167,22 @@ class Game(ndb.Model):
 
     def finish_round(self):
 
+        players_sorted = self.players_sorted_by_sync()
+
         # Dealer plays
         dealer = self.dealer.get()
         dealer.cards_vis.append(dealer.cards_inv.pop())
         hand_vals = dealer.hand_values(dealer.cards_vis)
         while all(v < 19 or v > 21 for v in hand_vals) and\
                 not all(v > 21 for v in hand_vals):
-            dealer._hit()
+            dealer._hit(self)
             hand_vals = dealer.hand_values(dealer.cards_vis)
 
         # Get surrender-ers
-        cowards = Player.query(
-            Player.sync == 3,
-            ancestor=self.key).fetch(self.p_cur)
+        cowards = players_sorted[3]
 
         # Sort out the rest
-        others = Player.query(
-            Player.sync == 2,
-            ancestor=self.key).fetch(self.p_cur)
+        others = players_sorted[2]
 
         winners = []
         losers = []

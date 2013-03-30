@@ -22,22 +22,6 @@ class Player(ndb.Model):
     sync = ndb.IntegerProperty(default=4)
 
 
-    def game(self):
-        
-        return self.key.parent().get()
-
-
-    def gamestatus_as_dict(self):
-
-        cvis = [card.get().as_cardstr() for card in self.cards_vis]
-        cinv = [card.get().as_cardstr() for card in self.cards_inv]
-
-        return {'actions': self.actions(),
-                'your_cards_visible': cvis,
-                'common_cards_visible': [],
-                'players': self.game().players_as_dict()}
-
-
     def info_as_dict(self):
 
         cvis = [card.get().as_cardstr() for card in self.cards_vis]
@@ -60,8 +44,7 @@ class Player(ndb.Model):
         result = {0}
         if not hand:
             hand = self.cards_vis
-        cards = map(lambda card: card.get().map_value(),
-                    self.cards_vis)
+        cards = [c.get().map_value() for c in self.cards_vis]
 
         logging.info('Calculating hand value for {}'\
                 .format(self.name))
@@ -77,13 +60,11 @@ class Player(ndb.Model):
         return result
 
 
-    def actions(self):
+    def actions(self, game):
 
         logging.info('*** player => {}'.format(self.key.id()))
         if self.key.id() == 'dealer':
             ret = []
-
-        game = self.game()
 
         if game.playing:
 
@@ -108,29 +89,28 @@ class Player(ndb.Model):
         return ret
 
 
-    def do_action(self, act, val):
+    def do_action(self, game, act, val):
 
         # Only let players do what we say they can
-        if act not in self.actions():
+        if act not in self.actions(game):
             return
 
         # Dispatch action to corresponding function
         dispatch = getattr(self, '_{}'.format(act))
-        dispatch(val)
+        dispatch(game, val)
 
         # Set proper sync value if the player did their
         # first action of the round
-        if self.sync == 0 and self.game().playing:
+        if self.sync == 0 and game.playing:
             self.sync = 1
         self.put()
 
         # Trigger a game update
-        self.game().selfupdate()
+        game.selfupdate()
 
 
-    def _hit(self, val=None):
-        gkey = self.key.parent()
-        deck = Deck.query(ancestor=gkey).get()
+    def _hit(self, game, val=None):
+        deck = game.deck.get()
         card = deck.draw()
 
         # Add card to hand
@@ -145,35 +125,35 @@ class Player(ndb.Model):
         return card
 
 
-    def _stand(self, val=None):
+    def _stand(self, game=None, val=None):
         self.sync = 2
 
 
-    def _doubledown(self, val=None):
+    def _doubledown(self, game, val=None):
 
         # Double your wager
         self.wager += self.wager
 
         # Take a single card
-        self._hit(val)
+        self._hit(game, val)
 
         # And stand
-        self._stand(val)
+        self._stand(game, val)
 
 
-    def _split(self, val=None):
+    def _split(self, game=None, val=None):
 
         # Set up the two different decks
         self.cards_spl.append(self.cards_vis.pop())
 
 
-    def _surrender(self, val=None):
+    def _surrender(self, game=None, val=None):
 
         # Mark self as surrendered
         self.sync = 3
 
 
-    def _join(self, val):
+    def _join(self, game=None, val=None):
 
         if not val:
             return
@@ -187,10 +167,11 @@ class Player(ndb.Model):
         self.sync = 0
 
 
-    def _skip(self, val=None):
+    def _skip(self, game=None, val=None):
 
         # Don't bet anything, but say you're ready
         if self.wager is not None:
             self.tokens += self.wager
         self.wager = None
         self.sync = 0
+

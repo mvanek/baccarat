@@ -81,6 +81,12 @@ class GameIdPage(webapp2.RequestHandler):
 
 
 class PlayerConnectPage(webapp2.RequestHandler):
+    
+    def senderror(self):
+
+        self.response.headers['Content/Type'] = 'text/plain'
+        self.response.out.write('error')
+
 
     def post(self, gid):
         
@@ -92,36 +98,54 @@ class PlayerConnectPage(webapp2.RequestHandler):
                 'tokens')
 
         if not all(key in sub_player for key in keys):
-            self.response.headers['Content/Type'] = 'text/plain'
-            self.response.out.write('error')
+            self.senderror()
+            logging.info('\n{}\n{}\n{}'.format(
+            '************ ERROR ************',
+            '--> Incomplete information',
+            '************ ERROR ************'))
+            return
+
+        # Check if the game exists
+        this_game = Game.get_by_id(gid)
+        if not this_game:
+            self.senderror()
+            logging.info('\n{}\n{}\n{}'.format(
+            '************ ERROR ************',
+            '--> No game found',
+            '************ ERROR ************'))
             return
 
         # Check if player ID is taken
-        pkey = ndb.Key('Game', gid, 'Player', sub_player['id'])
-        if pkey.get():
-            self.response.headers['Content/Type'] = 'text/plain'
-            self.response.out.write('error')
+        player = Player.get_by_id(sub_player['id'])
+        if player:
+            self.senderror()
+            logging.info('\n{}\n{}\n{}'.format(
+            '************ ERROR ************',
+            '--> ID already taken:\n{}'\
+                    .format(player.info_as_dict()),
+            '************ ERROR ************'))
             return
 
         # Store the new player in the datastore
-        this_game = Game.get_by_id(gid)
-        if not this_game:
-            self.response.headers['Content/Type'] = 'text/plain'
-            self.response.out.write('error')
-            return
-        this_game.p_cur += 1
-
-        gkey = this_game.key
-
-        new_player = Player(id=sub_player['id'], parent=gkey)
-        new_player.populate(name = sub_player['name'],
+        new_player = Player(id=sub_player['id'],
+                            name = sub_player['name'],
                             tokens = int(sub_player['tokens']),
                             a_url = sub_player['avatar_url'],
                             cards_vis = sub_player['cards_visible'],
                             cards_inv = sub_player['cards_not_visible'],
                             sync = 4)
+        pkey = new_player.put()
 
-        new_player.put()
+        if not pkey:
+            self.senderror()
+            logging.info('\n{}\n{}\n{}'.format(
+            '************ ERROR ************',
+            '--> No key returned',
+            '************ ERROR ************'))
+            return
+
+        this_game.p_cur += 1
+        this_game.players.append(pkey)
         this_game.put()
 
         # Send response
@@ -137,20 +161,20 @@ class StatusPage(webapp2.RequestHandler):
         game = Game.get_by_id(gid)
 
         ## test the hand values ##
-        S = Player.query(ancestor=ndb.Key('Game', gid)).map(
-            lambda player: player.hand_values())
+        S = [p.hand_values() for p in ndb.get_multi(game.players)]
 
         pid = self.request.get('player_id')
         if not pid: 
             return
 
-        player = ndb.Key('Game', gid,
-                         'Player', pid).get()
+        player = Player.get_by_id(pid)
+        if not player:
+            return
 
         self.response.headers['Content/Type'] = 'application/json'
 
         if player:
-            self.response.out.write(json.dumps(player.gamestatus_as_dict()))
+            self.response.out.write(json.dumps(game.gamestatus_as_dict(player)))
 
 
 
@@ -158,16 +182,20 @@ class ActionPage(webapp2.RequestHandler):
 
     def post(self, gid):
 
+        game = Game.get_by_id(gid)
+        if not game:
+            return
+
         pid = self.request.get('player_id')
         act = self.request.get('action')
         val = self.request.get('value')
 
 
         if pid:
-            player = ndb.Key('Game', gid, 'Player', pid).get()
+            player = Player.get_by_id(pid)
 
         if player:
-            player.do_action(act, val)
+            player.do_action(game, act, val)
 
 
 
@@ -175,14 +203,12 @@ class TablePage(webapp2.RequestHandler):
 
     def get(self, gid):
 
-        self.response.headers['Content/Type'] = 'text/html'
+        players = Game.get_by_id(gid).players_as_dict()
 
-        game = Game.get_by_id(gid)
-        players = Player.query(ancestor=game.key)\
-                .map(lambda p: p.info_as_dict())
         tvars = {'players': players}
-
         template = jinja_environment.get_template('/templates/table.html')
+
+        self.response.headers['Content/Type'] = 'text/html'
         self.response.out.write(template.render(tvars))
 
 
