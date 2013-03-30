@@ -1,4 +1,3 @@
-import logging
 import jinja2
 import os
 import random
@@ -99,31 +98,18 @@ class PlayerConnectPage(webapp2.RequestHandler):
 
         if not all(key in sub_player for key in keys):
             self.senderror()
-            logging.info('\n{}\n{}\n{}'.format(
-            '************ ERROR ************',
-            '--> Incomplete information',
-            '************ ERROR ************'))
             return
 
         # Check if the game exists
         this_game = Game.get_by_id(gid)
         if not this_game:
             self.senderror()
-            logging.info('\n{}\n{}\n{}'.format(
-            '************ ERROR ************',
-            '--> No game found',
-            '************ ERROR ************'))
             return
 
         # Check if player ID is taken
         player = Player.get_by_id(sub_player['id'])
         if player:
             self.senderror()
-            logging.info('\n{}\n{}\n{}'.format(
-            '************ ERROR ************',
-            '--> ID already taken:\n{}'\
-                    .format(player.info_as_dict()),
-            '************ ERROR ************'))
             return
 
         # Store the new player in the datastore
@@ -138,10 +124,6 @@ class PlayerConnectPage(webapp2.RequestHandler):
 
         if not pkey:
             self.senderror()
-            logging.info('\n{}\n{}\n{}'.format(
-            '************ ERROR ************',
-            '--> No key returned',
-            '************ ERROR ************'))
             return
 
         this_game.p_cur += 1

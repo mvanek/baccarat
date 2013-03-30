@@ -1,4 +1,3 @@
-import logging
 from google.appengine.ext import ndb
 from deck import Deck
 
@@ -46,23 +45,17 @@ class Player(ndb.Model):
             hand = self.cards_vis
         cards = [c.get().map_value() for c in self.cards_vis]
 
-        logging.info('Calculating hand value for {}'\
-                .format(self.name))
-
         for card_vals in cards:
             result = {int(a)+int(b)\
                     for a in card_vals\
                     for b in result}
-            logging.info('--> vals {} ==> {}'.format(
-                card_vals,
-                result))
 
         return result
 
 
+    @ndb.transactional
     def actions(self, game):
 
-        logging.info('*** player => {}'.format(self.key.id()))
         if self.key.id() == 'dealer':
             ret = []
 

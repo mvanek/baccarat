@@ -1,4 +1,3 @@
-import logging
 from google.appengine.ext import ndb
 from card import Card
 import random
@@ -6,14 +5,9 @@ import random
 class Deck(ndb.Model):
 
     num_decks = ndb.IntegerProperty()
-    start_card = ndb.IntegerProperty()
 
     @classmethod
     def new(self, num_decks, parent_key):
-
-        logging.info('{}\n{}'.format(
-            '******* ALERT *******',
-            '*** CREATING DECK ***'))
 
         new_deck = Deck(num_decks=num_decks, parent=parent_key)
 
@@ -51,22 +45,7 @@ class Deck(ndb.Model):
 
             # Now you can return any card
             cards = new_cards
-            logging.info('*** alert: generated new deck ***\n{}'\
                     .format(new_cards))
-
-        # Log interesting info about the deck
-        allcards = Card.query(ancestor=self.key).fetch(52)
-        logging.info('\n{}\n{}\n{}\n{}\n{}\n{}\n{}'.format(
-            '*** Drawing a card ***',
-            '--> deck info <--',
-            'num_decks: {}\nstart_card: {}'\
-                .format(self.num_decks,self.start_card),
-            'remaining cards: {}'\
-                .format(remaining_card_count),
-            '--> all cards <--',
-            allcards,
-            '--> available cards <--',
-            cards))
 
         # Return a random card.
         ret = random.choice(cards)

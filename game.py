@@ -1,4 +1,3 @@
-import logging
 from google.appengine.ext import ndb
 from player import Player
 from deck import Deck
@@ -77,9 +76,7 @@ class Game(ndb.Model):
 
         ret = (list(), list(), list(), list(), list())
 
-        all_players = ndb.get_multi(self.players)
-
-        for p in all_players:
+        for p in ndb.get_multi(self.players)
             ret[p.sync].append(p)
 
         return ret
@@ -103,22 +100,16 @@ class Game(ndb.Model):
             if players_ready == self.p_cur and self.p_cur > 1:
                 self.start_round()
 
-        # Send info to log
-        logging.info('\n{}\n{}\n{}\n{}\n{}'.format(
-            '*** Updating game status ***',
-            '-->   Game running?: {}'.format(self.playing),
-            '-->   Total Players: {}'.format(self.p_cur),
-            '--> Players Waiting: {}'.format(players_ready),
-            '-->  Sorted Players: {}'.format(players_sorted)))
-
         # Send notification messages to connected clients
         self.notify_players()
 
 
+    @ndb.transactional
     def start_round(self):
 
         self.playing = True
 
+        # Get everyone
         dealer = self.dealer.get()
         deck = self.deck.get()
         players = ndb.get_multi(self.players)
@@ -144,7 +135,6 @@ class Game(ndb.Model):
 
             # Give cards to those playing
             if p.sync == 0:
-                logging.info('>>> Player: {}'.format(p.name))
                 anybody_playing = True
                 p._hit(self)
                 p._hit(self)
@@ -165,6 +155,7 @@ class Game(ndb.Model):
         self.put()
 
 
+    @ndb.transactional
     def finish_round(self):
 
         players_sorted = self.players_sorted_by_sync()
@@ -225,17 +216,6 @@ class Game(ndb.Model):
 
         players.append(dealer)
         ndb.put_multi(players)
-
-
-        # Log results
-        logging.info('\n{}\n{}\n{}\n{}'.format(
-            '*** Finished game ***',
-            '--> winners: {}'.format(map(
-                lambda p: p.name, winners)),
-            '-->  losers: {}'.format(map(
-                lambda p: p.name, losers)),
-            '--> cowards: {}'.format(map(
-                lambda p: p.name, cowards))))
 
 
     def winnings(self, player):
