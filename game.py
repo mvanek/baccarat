@@ -92,27 +92,46 @@ class Game(ndb.Model):
         dealer = self.dealer.get()
         deck = self.deck.get()
 
+        # Remove old cards from player hands, and if they're playing,
+        # give them new ones
+        anybody_playing = False
+        players = [p for p in Player.query(ancestor=self.key).fetch(self.p_max)]
+        for p in players:
+
+            # Skip the dealer
+            if p.key.id() == 'dealer':
+                continue
+
+            # Remove players' cards
+            p.cards_vis = []
+            p.cards_inv = []
+            p.cards_spl = []
+
+            # If the player is sitting out, set them as ready
+            # for the round to end
+            if p.wager is None:
+                p.sync = 4
+
+            # Give cards to those playing
+            if p.sync == 0:
+                logging.info('>>> Player: {}'.format(p.name))
+                anybody_playing = True
+                p._hit()
+                p._hit()
+
+        # If nobody is actually playing, abort without changing the datastore
+        if not anybody_playing:
+            return
+
+        # Give dealer cards
         dealer.cards_vis = []
         dealer.cards_inv = []
         dealer.cards_vis.append(deck.draw().key)
         dealer.cards_inv.append(deck.draw().key)
         dealer.sync = 4
-        dealer.put()
 
-        # Remove old cards from player hands, and if they're playing,
-        # give them new ones
-        players = [p for p in Player.query(ancestor=self.key).fetch(self.p_max)]
-        for p in players:
-            if p.key.id() == 'dealer':
-                continue
-            p.cards_vis = []
-            p.cards_inv = []
-            p.cards_spl = []
-            if p.sync == 0:
-                p._hit()
-                p._hit()
+        # Save game and players to datastore
         ndb.put_multi(players)
-
         self.put()
 
 
@@ -120,10 +139,7 @@ class Game(ndb.Model):
 
         # Dealer plays
         dealer = self.dealer.get()
-
         dealer.cards_vis.append(dealer.cards_inv.pop())
-        dealer.sync = 0
-
         hand_vals = dealer.hand_values(dealer.cards_vis)
         while all(v < 19 or v > 21 for v in hand_vals) and\
                 not all(v > 21 for v in hand_vals):
@@ -143,8 +159,8 @@ class Game(ndb.Model):
         winners = []
         losers = []
 
-        dealerhand = self.dealer.get().hand_values()
         dealermax = 0
+        dealerhand = self.dealer.get().hand_values()
         for v in dealerhand:
             if v < 22 and v > dealermax:
                 dealermax = v
@@ -175,6 +191,9 @@ class Game(ndb.Model):
             # Reset sync, cards, and bets
             p.sync = 4
             p.wager = 0
+
+        # Set the dealer as ready to play the next game
+        dealer.sync = 0
 
         players.append(dealer)
         ndb.put_multi(players)

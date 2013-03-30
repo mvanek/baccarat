@@ -135,7 +135,6 @@ class StatusPage(webapp2.RequestHandler):
     def get(self, gid):
 
         game = Game.get_by_id(gid)
-        game.selfupdate()
 
         ## test the hand values ##
         S = Player.query(ancestor=ndb.Key('Game', gid)).map(

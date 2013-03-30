@@ -81,41 +81,50 @@ class Player(ndb.Model):
 
         logging.info('*** player => {}'.format(self.key.id()))
         if self.key.id() == 'dealer':
-            return []
+            ret = []
 
         game = self.game()
 
-        if self.sync < 2 and game.playing:
-            ret = ['hit',
-                   'stand',
-                   'doubledown']
+        if game.playing:
 
-            if self.sync == 0:
-                ret.append('surrender')
+            # Actions for players
+            if self.sync < 2:
+                ret = ['hit',
+                       'stand',
+                       'doubledown']
 
-#                if self.cards_vis[0].get().map_value() ==\
-#                        self.cards_vis[1].get().map_value():
-#                    ret.append('split')
+                # Actions for the first round
+                if self.sync == 0:
+                    ret.append('surrender')
 
-            return ret
+            # No actions if you're done playing this round
+            else:
+                ret = []
 
-        elif self.sync == 4:
-            return ['join']
+        # Nobody playing.  Let players join or skip the next round
         else:
-            return []
+            ret = ['join', 'skip']
+
+        return ret
 
 
     def do_action(self, act, val):
 
+        # Only let players do what we say they can
         if act not in self.actions():
             return
 
+        # Dispatch action to corresponding function
         dispatch = getattr(self, '_{}'.format(act))
         dispatch(val)
+
+        # Set proper sync value if the player did their
+        # first action of the round
         if self.sync == 0 and self.game().playing:
             self.sync = 1
         self.put()
 
+        # Trigger a game update
         self.game().selfupdate()
 
 
@@ -178,4 +187,10 @@ class Player(ndb.Model):
         self.sync = 0
 
 
+    def _skip(self, val=None):
 
+        # Don't bet anything, but say you're ready
+        if self.wager is not None:
+            self.tokens += self.wager
+        self.wager = None
+        self.sync = 0
