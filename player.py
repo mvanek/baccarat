@@ -93,9 +93,9 @@ class Player(ndb.Model):
             if self.sync == 0:
                 ret.append('surrender')
 
-                if self.cards_vis[0].get().map_value() ==\
-                        self.cards_vis[1].get().map_value():
-                    ret.append('split')
+#                if self.cards_vis[0].get().map_value() ==\
+#                        self.cards_vis[1].get().map_value():
+#                    ret.append('split')
 
             return ret
 
@@ -126,6 +126,13 @@ class Player(ndb.Model):
 
         # Add card to hand
         self.cards_vis.append(card.key)
+
+        # Check for bust if the dealer is not playing
+        if self.key.id() != 'dealer':
+            hand_vals = self.hand_values(self.cards_vis)
+            if all(h > 21 for h in hand_vals):
+                self._stand()
+
         return card
 
 
@@ -166,10 +173,6 @@ class Player(ndb.Model):
         # Submit bet
         self.wager = wager
         self.tokens -= wager
-
-        # Get two cards
-        self._hit(val)
-        self._hit(val)
 
         # Set proper sync value
         self.sync = 0

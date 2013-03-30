@@ -9,6 +9,9 @@ from google.appengine.ext import ndb
 ## Data Models
 from player import Player
 from game import Game
+from deck import Deck
+from card import Card
+
 
 
 jinja_environment = jinja2.Environment(
@@ -17,6 +20,25 @@ jinja_environment = jinja2.Environment(
 
 
 ## Request Handlers
+
+class ResetPage(webapp2.RequestHandler):
+
+    def get(self):
+
+        self.response.headers['Content/Type'] = 'text/html'
+
+        players = Player.query()
+        games = Game.query()
+        cards = Card.query()
+        decks = Deck.query()
+
+        ndb.delete_multi([p for p in players.iter(keys_only=True)])
+        ndb.delete_multi([g for g in games.iter(keys_only=True)])
+        ndb.delete_multi([c for c in cards.iter(keys_only=True)])
+        ndb.delete_multi([d for d in decks.iter(keys_only=True)])
+
+        self.response.out.write('Deleted everything. Smooth move.')
+        
 
 class GamePage(webapp2.RequestHandler):
 
@@ -70,6 +92,13 @@ class PlayerConnectPage(webapp2.RequestHandler):
                 'tokens')
 
         if not all(key in sub_player for key in keys):
+            self.response.headers['Content/Type'] = 'text/plain'
+            self.response.out.write('error')
+            return
+
+        # Check if player ID is taken
+        pkey = ndb.Key('Game', gid, 'Player', sub_player['id'])
+        if pkey.get():
             self.response.headers['Content/Type'] = 'text/plain'
             self.response.out.write('error')
             return
@@ -162,6 +191,7 @@ class TablePage(webapp2.RequestHandler):
 ## Main Script
 
 app = webapp2.WSGIApplication([
+    ('/reset', ResetPage),
     ('/games', GamePage),
     ('/games/([0-9]+)/', GameIdPage),
     ('/games/([0-9]+)/playerConnect', PlayerConnectPage),

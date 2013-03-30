@@ -92,11 +92,27 @@ class Game(ndb.Model):
         dealer = self.dealer.get()
         deck = self.deck.get()
 
+        dealer.cards_vis = []
+        dealer.cards_inv = []
         dealer.cards_vis.append(deck.draw().key)
         dealer.cards_inv.append(deck.draw().key)
         dealer.sync = 4
-
         dealer.put()
+
+        # Remove old cards from player hands, and if they're playing,
+        # give them new ones
+        players = [p for p in Player.query(ancestor=self.key).fetch(self.p_max)]
+        for p in players:
+            if p.key.id() == 'dealer':
+                continue
+            p.cards_vis = []
+            p.cards_inv = []
+            p.cards_spl = []
+            if p.sync == 0:
+                p._hit()
+                p._hit()
+        ndb.put_multi(players)
+
         self.put()
 
 
@@ -159,12 +175,6 @@ class Game(ndb.Model):
             # Reset sync, cards, and bets
             p.sync = 4
             p.wager = 0
-            p.cards_vis = []
-            p.cards_inv = []
-            p.cards_spl = []
-
-        dealer.cards_vis = []
-        dealer.cards_inv = []
 
         players.append(dealer)
         ndb.put_multi(players)
