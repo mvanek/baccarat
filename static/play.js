@@ -221,6 +221,40 @@ function status_button_handler() {
 }
 
 
+function newplayer_button_handler() {
+
+    var name,
+        pid,
+        cash,
+        av,
+        newplayer;
+
+    name = $("#newplayer input[name=new_name]").val();
+    pid = $("#newplayer input[name=new_pid]").val();
+    cash = $("#newplayer input[name=new_cash]").val();
+    av = $("#newplayer input[name=new_av]").val();
+
+    newplayer = {
+        id: pid,
+        name: name,
+        tokens: cash,
+        avatar_url: av,
+        cards_visible: new Array(),
+        cards_not_visible: new Array()
+    }
+
+    $.ajax({
+
+        url: "./playerConnect",
+        type: "POST",
+
+        data: {
+            player: JSON.stringify( newplayer )
+        }
+
+    }).done( status_button_handler );
+}
+
 
 /************
  * Debugging 
