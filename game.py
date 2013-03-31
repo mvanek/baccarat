@@ -57,10 +57,12 @@ class Game(ndb.Model):
 
     def gamestatus_as_dict(self, player):
 
+        deck = self.deck.get()
+
         return {
             'your_actions': player.actions(self),
-            'your_cards_visible': [c.as_cardstr() for c in\
-                    ndb.get_multi(player.cards_vis + player.cards_inv)],
+            'your_cards_visible': [deck.card_as_str(c) for c in\
+                    player.cards_vis + player.cards_inv],
             'common_cards_visible': [],
             'players': self.players_as_dict()
         }
@@ -68,7 +70,7 @@ class Game(ndb.Model):
 
     def players_as_dict(self):
 
-        return [p.info_as_dict() for p in\
+        return [p.info_as_dict(self) for p in\
                    ndb.get_multi(self.players)]
 
 
@@ -76,7 +78,7 @@ class Game(ndb.Model):
 
         ret = (list(), list(), list(), list(), list())
 
-        for p in ndb.get_multi(self.players)
+        for p in ndb.get_multi(self.players):
             ret[p.sync].append(p)
 
         return ret
@@ -104,7 +106,6 @@ class Game(ndb.Model):
         self.notify_players()
 
 
-    @ndb.transactional
     def start_round(self):
 
         self.playing = True
@@ -155,7 +156,6 @@ class Game(ndb.Model):
         self.put()
 
 
-    @ndb.transactional
     def finish_round(self):
 
         players_sorted = self.players_sorted_by_sync()
@@ -163,11 +163,11 @@ class Game(ndb.Model):
         # Dealer plays
         dealer = self.dealer.get()
         dealer.cards_vis.append(dealer.cards_inv.pop())
-        hand_vals = dealer.hand_values(dealer.cards_vis)
+        hand_vals = dealer.hand_values(self, dealer.cards_vis)
         while all(v < 19 or v > 21 for v in hand_vals) and\
                 not all(v > 21 for v in hand_vals):
             dealer._hit(self)
-            hand_vals = dealer.hand_values(dealer.cards_vis)
+            hand_vals = dealer.hand_values(self, dealer.cards_vis)
 
         # Get surrender-ers
         cowards = players_sorted[3]
@@ -179,7 +179,7 @@ class Game(ndb.Model):
         losers = []
 
         dealermax = 0
-        dealerhand = self.dealer.get().hand_values()
+        dealerhand = self.dealer.get().hand_values(self)
         for v in dealerhand:
             if v < 22 and v > dealermax:
                 dealermax = v
@@ -187,15 +187,13 @@ class Game(ndb.Model):
         for player in others:
             if player.key.id() == 'dealer':
                 continue
-            if any(v > dealermax and v < 22 for v in player.hand_values()):
+            if any(v > dealermax and v < 22 for v in player.hand_values(self)):
                 winners.append(player)
             else:
                 losers.append(player)
 
         # Mark the game as finished
         self.playing = False
-        # Save the game
-        self.put()
 
         # Finish up with the players
         players = cowards + others
@@ -215,7 +213,9 @@ class Game(ndb.Model):
         dealer.sync = 0
 
         players.append(dealer)
+
         ndb.put_multi(players)
+        self.put()
 
 
     def winnings(self, player):

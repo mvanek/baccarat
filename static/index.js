@@ -20,9 +20,14 @@
 
 
     /* Fetch remaining info */
-    $.ajax({
-        url: "/games",
-        type: "GET"
-    }).done( update_gamelist );
+    request_gamelist()
+    function request_gamelist() {
+
+        $.ajax({
+            url: "/games",
+            type: "GET"
+        }).done( update_gamelist );
+
+    }
 
 })();

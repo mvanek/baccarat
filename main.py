@@ -37,7 +37,7 @@ class ResetPage(webapp2.RequestHandler):
         ndb.delete_multi([d for d in decks.iter(keys_only=True)])
 
         self.response.out.write('Deleted everything. Smooth move.')
-        
+
 
 class GamePage(webapp2.RequestHandler):
 
@@ -71,7 +71,7 @@ class GamePage(webapp2.RequestHandler):
 
 
 class GameIdPage(webapp2.RequestHandler):
-    
+
     def get(self, gid):
 
         self.response.headers['Content/Type'] = 'text/html'
@@ -80,7 +80,7 @@ class GameIdPage(webapp2.RequestHandler):
 
 
 class PlayerConnectPage(webapp2.RequestHandler):
-    
+
     def senderror(self):
 
         self.response.headers['Content/Type'] = 'text/plain'
@@ -88,7 +88,7 @@ class PlayerConnectPage(webapp2.RequestHandler):
 
 
     def post(self, gid):
-        
+
         sub_player = json.loads(self.request.get('player'))
 
         # Make sure input is valid
@@ -137,16 +137,13 @@ class PlayerConnectPage(webapp2.RequestHandler):
 
 
 class StatusPage(webapp2.RequestHandler):
-    
+
     def get(self, gid):
 
         game = Game.get_by_id(gid)
 
-        ## test the hand values ##
-        S = [p.hand_values() for p in ndb.get_multi(game.players)]
-
         pid = self.request.get('player_id')
-        if not pid: 
+        if not pid:
             return
 
         player = Player.get_by_id(pid)

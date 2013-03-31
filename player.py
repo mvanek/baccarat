@@ -21,11 +21,12 @@ class Player(ndb.Model):
     sync = ndb.IntegerProperty(default=4)
 
 
-    def info_as_dict(self):
+    def info_as_dict(self, game):
 
-        cvis = [card.get().as_cardstr() for card in self.cards_vis]
-        cinv = [card.get().as_cardstr() for card in self.cards_inv]
-        cspl = [card.get().as_cardstr() for card in self.cards_spl]
+        deck = game.deck.get()
+        cvis = [deck.card_as_str(card) for card in self.cards_vis]
+        cinv = [deck.card_as_str(card) for card in self.cards_inv]
+        cspl = [deck.card_as_str(card) for card in self.cards_spl]
 
         return {'name': self.name,
                 'id': self.key.id(),
@@ -38,17 +39,19 @@ class Player(ndb.Model):
                 'status': self.sync}
 
 
-    def hand_values(self, hand=None):
+    def hand_values(self, game, hand=None):
+
+        deck = game.deck.get()
 
         result = {0}
         if not hand:
             hand = self.cards_vis
-        cards = [c.get().map_value() for c in self.cards_vis]
+        cards_as_values = [deck.map_card_value(c) for c in self.cards_vis]
 
-        for card_vals in cards:
+        for card_vals in cards_as_values:
             result = {int(a)+int(b)\
-                    for a in card_vals\
-                    for b in result}
+                      for a in card_vals\
+                      for b in result}
 
         return result
 
@@ -111,7 +114,7 @@ class Player(ndb.Model):
 
         # Check for bust if the dealer is not playing
         if self.key.id() != 'dealer':
-            hand_vals = self.hand_values(self.cards_vis)
+            hand_vals = self.hand_values(game, self.cards_vis)
             if all(h > 21 for h in hand_vals):
                 self._stand()
 

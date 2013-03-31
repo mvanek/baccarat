@@ -6,6 +6,16 @@
  */
 
 
+function request_gamelist() {
+
+    $.ajax({
+        url: "/games",
+        type: "GET"
+    }).done( update_gamelist );
+
+}
+
+
 function update_gamelist( gamelist ) {
 
     var i,          /* Counter for loops */
@@ -17,6 +27,8 @@ function update_gamelist( gamelist ) {
     list = JSON.parse( gamelist );
 
     parent_jq = $("#running_games");
+    parent_jq.children().detach()
+
     for( i = 0; i < list.length; i++ ) {
 
         node_jq = $( document.createElement("div") );
@@ -182,7 +194,7 @@ function newgame_button_handler() {
             game: JSON.stringify( game_obj )
         }
 
-    });
+    }).done( request_gamelist );
 
 }
 
