@@ -21,13 +21,5 @@
 
     /* Fetch remaining info */
     request_gamelist()
-    function request_gamelist() {
-
-        $.ajax({
-            url: "/games",
-            type: "GET"
-        }).done( update_gamelist );
-
-    }
 
 })();
