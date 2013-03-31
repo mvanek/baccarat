@@ -1,6 +1,15 @@
+import os
+import jinja2
+from google.appengine.api import channel
 from google.appengine.ext import ndb
 from player import Player
 from deck import Deck
+import json
+
+import logging
+jinja_environment = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
+
 
 class Game(ndb.Model):
 
@@ -223,7 +232,17 @@ class Game(ndb.Model):
 
 
     def notify_players(self):
-        pass
 
+        players_as_dict = self.players_as_dict()
+        logging.info(players_as_dict)
+        tvars = {'players': players_as_dict}
+        template = jinja_environment.get_template('/templates/table.html')
+        table = template.render(tvars)
 
+        for p in self.players:
 
+            update_dict = {'status': self.gamestatus_as_dict(p.get()),
+                           'table': table}
+
+            update_msg = json.dumps(update_dict)
+            channel.send_message(p.id(), update_msg)

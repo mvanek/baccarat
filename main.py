@@ -4,6 +4,7 @@ import random
 import webapp2
 import json
 from google.appengine.ext import ndb
+from google.appengine.api import channel
 
 ## Data Models
 from player import Player
@@ -24,8 +25,6 @@ class ResetPage(webapp2.RequestHandler):
 
     def get(self):
 
-        self.response.headers['Content/Type'] = 'text/html'
-
         players = Player.query()
         games = Game.query()
         cards = Card.query()
@@ -36,7 +35,19 @@ class ResetPage(webapp2.RequestHandler):
         ndb.delete_multi([c for c in cards.iter(keys_only=True)])
         ndb.delete_multi([d for d in decks.iter(keys_only=True)])
 
+        self.response.headers['Content/Type'] = 'text/html'
         self.response.out.write('Deleted everything. Smooth move.')
+
+
+class ChannelPage(webapp2.RequestHandler):
+
+    def get(self, gid):
+
+        pid = self.request.get('player_id')
+
+        if pid:
+            self.response.headers['Content/Type'] = 'application/json'
+            self.response.out.write(channel.create_channel(pid))
 
 
 class GamePage(webapp2.RequestHandler):
@@ -198,6 +209,7 @@ app = webapp2.WSGIApplication([
     ('/reset', ResetPage),
     ('/games', GamePage),
     ('/games/([0-9]+)/', GameIdPage),
+    ('/games/([0-9]+)/status_channel_open', ChannelPage),
     ('/games/([0-9]+)/playerConnect', PlayerConnectPage),
     ('/games/([0-9]+)/visible_table', TablePage),
     ('/games/([0-9]+)/action', ActionPage),
